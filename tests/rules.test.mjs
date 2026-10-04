@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {minimumPoints,replay,emptyHigh,activeEvents,undoTarget,validateImport} from '../dist/rules.js';
+import {minimumPoints,replay,emptyHigh,activeEvents,undoTarget,validateImport} from '../rules.js';
 let n=0;const event=(type,rest={})=>({id:String(++n),timestamp:n,type,...rest});
 const chance=(chars=['mumei'],kind='single',high=emptyHigh(),lit={mumei:false})=>event('chance',{characters:chars,chanceType:kind,high,illuminated:lit});
 test('single dark, unconfirmed flash, CZ flash and confirmed non-CZ flash lower bounds',()=>{const a=chance();assert.deepEqual(minimumPoints(a),{mumei:1});a.illuminated.mumei=true;assert.equal(minimumPoints(a).mumei,1);assert.equal(minimumPoints(a,{[a.id]:'cz-or-unknown'}).mumei,1);assert.equal(minimumPoints(a,{[a.id]:'no-cz'}).mumei,15);});

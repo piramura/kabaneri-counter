@@ -1,6 +1,6 @@
 // DOM API harness: executes actual app handlers and storage, without claiming layout/browser QA.
-import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import {webcrypto} from 'node:crypto';import * as rules from '../dist/rules.js';
-const source=fs.readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*?;\n/,'');
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import {webcrypto} from 'node:crypto';import * as rules from '../rules.js';
+const source=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*?;\n/,'');
 function boot(saved=null,fail=false){
  const nodes=new Map(),handlers={},writes=[];let stored=saved;
  class Element{

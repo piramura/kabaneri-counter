@@ -8,9 +8,9 @@
 
 ## 構成
 
-- `dist/index.html`, `style.css`：スマートフォン優先の3列コンパクトカード、大きなボタン、色と文字による識別。
-- `dist/app.js`：操作、保存、モーダル、JSON/CSV出力。ユーザー入力はHTMLにエスケープ。
-- `dist/rules.js`：DOM非依存の計算、再生、Undo、インポート検証。
+- `index.html`, `style.css`：スマートフォン優先の3列コンパクトカード、大きなボタン、色と文字による識別。
+- `app.js`：操作、保存、モーダル、JSON/CSV出力。ユーザー入力はHTMLにエスケープ。
+- `rules.js`：DOM非依存の計算、再生、Undo、インポート検証。
 - `tests/`：Node標準テスト。外部API・バックエンド・ログイン不要。
 
 ## スキーマ1
