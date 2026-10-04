@@ -1,0 +1,23 @@
+// DOM API harness: executes actual app handlers and storage, without claiming layout/browser QA.
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import {webcrypto} from 'node:crypto';import * as rules from '../dist/rules.js';
+const source=fs.readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*?;\n/,'');
+function boot(saved=null,fail=false){
+ const nodes=new Map(),handlers={},writes=[];let stored=saved;
+ class Element{
+  constructor(id){this.id=id;this.value='';this.dataset={};this.disabled=false;this.classList={add(){},remove(){}};}
+  set innerHTML(v){this.html=v;for(const m of v.matchAll(/\bid="([^"]+)"/g))nodes.set(m[1],new Element(m[1]));}
+  get innerHTML(){return this.html||'';}
+  showModal(){this.open=true;}close(){this.open=false;}
+  click(){this.onclick?.({target:this});}closest(){return this;}
+  querySelectorAll(selector){const attr=selector.slice(1,-1);return [...this.innerHTML.matchAll(new RegExp('<button[^>]*'+attr+'="([^"]+)"[^>]*>','g'))].map(m=>{const e=new Element('button');e.dataset[attr.slice(5).replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]=m[1];return e;});}
+ }
+ const get=id=>{if(!nodes.has(id))nodes.set(id,new Element(id));return nodes.get(id);};
+ const ctx=vm.createContext({...rules,console,structuredClone,crypto:webcrypto,Date,setTimeout:()=>0,clearTimeout(){},Blob,URL:{createObjectURL:()=>'',revokeObjectURL(){}},document:{getElementById:get,createElement:()=>new Element('a'),addEventListener:(name,fn)=>handlers[name]=fn},window:{addEventListener:(name,fn)=>handlers['window:'+name]=fn},localStorage:{getItem:()=>stored,setItem:(key,value)=>{if(fail)throw Error('quota');stored=value;writes.push(value);}}});
+ vm.runInContext(source,ctx);
+ return {get,clickDataset(dataset){const e=new Element('button');e.dataset=dataset;handlers.click({target:e});},read:()=>stored?JSON.parse(stored):null,raw:()=>stored,writes,storageEvent:()=>handlers['window:storage']({key:'kabaneri-medal-observations-v1'})};
+}
+test('single, high, CZ, ST, Undo, reload and normal rate through application handlers',()=>{const b=boot();b.clickDataset({chance:'mumei',lit:'false'});assert.equal(b.read().sessions[0].events[0].recordedMinimumPoints.mumei,1);b.clickDataset({high:'mumei'});b.clickDataset({chance:'mumei',lit:'true'});assert.equal(b.read().sessions[0].events.at(-1).recordedMinimumPoints.mumei,15);assert.match(b.get('cards').innerHTML,/16<small>/);b.clickDataset({cz:'mumei'});b.get('confirmAction').click();assert.match(b.get('cards').innerHTML,/0<small>/);b.get('undo').click();assert.match(b.get('cards').innerHTML,/16<small>/);b.get('stButton').click();b.get('confirmAction').click();assert.equal(b.get('st').textContent,1);const reload=boot(b.raw());assert.equal(reload.get('st').textContent,1);assert.match(reload.get('cards').innerHTML,/高確 OFF/);});
+test('flash confirmation changes recomputed value, leaves original observation intact',()=>{const b=boot();b.clickDataset({chance:'biba',lit:'true'});const id=b.read().sessions[0].events[0].id;b.clickDataset({resolve:id});b.get('noCZ').click();assert.match(b.get('cards').innerHTML,/15<small>/);assert.equal(b.read().sessions[0].events[0].recordedMinimumPoints.biba,1);b.get('undo').click();assert.match(b.get('cards').innerHTML,/確認待ち 1/);});
+test('allstar stores all observations, biba unknown and guaranteed fact separately',()=>{const b=boot();b.get('allstar').click();for(const c of rules.CHARACTERS)b.get('light-'+c).value='null';b.get('saveMulti').click();const e=b.read().sessions[0].events[0];assert.equal(e.recordedMinimumPoints.mumei,30);assert.equal(e.recordedMinimumPoints.biba,null);assert.deepEqual(e.pendingFacts,['biba_cz_guaranteed']);assert.match(b.get('cards').innerHTML,/減算量不明 1件/);});
+test('save failure and corrupted storage never overwrite persisted observations',()=>{const b=boot(null,true);b.clickDataset({chance:'mumei',lit:'false'});assert.equal(b.raw(),null);assert.equal(b.get('saveStatus').textContent,'保存エラー');const c=boot('{broken');c.clickDataset({chance:'mumei',lit:'false'});assert.equal(c.raw(),'{broken');assert.equal(c.writes.length,0);});
+test('cross-tab change blocks writes; end keeps data read-only across reload',()=>{const b=boot();b.clickDataset({chance:'ikoma',lit:'false'});b.storageEvent();b.clickDataset({chance:'mumei',lit:'true'});assert.equal(b.read().sessions[0].events.length,1);const c=boot(b.raw());c.get('end').click();c.get('finish').click();assert.ok(c.read().sessions[0].endedAt);const d=boot(c.raw());assert.equal(d.get('undo').disabled,true);assert.equal(d.get('allstar').disabled,true);});
